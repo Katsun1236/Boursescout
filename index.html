@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boursiers Scouts - Maître du Jeu (Local)</title>
+    <!-- Tailwind CSS pour un design moderne -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Police Inter -->
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #111827; /* bg-gray-900 */
+            color: #d1d5db; /* text-gray-300 */
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+        /* Style pour le journal de bord */
+        #gameLog {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #0d1117; /* Un noir/gris encore plus profond */
+            color: #e2e8f0; /* Texte gris clair */
+            border-radius: 8px;
+            padding: 16px;
+            height: 250px;
+            overflow-y: scroll;
+            display: flex;
+            flex-direction: column-reverse; /* Les nouveaux messages arrivent en bas */
+            border: 1px solid #374151; /* border-gray-700 */
+        }
+        #gameLog p { 
+            margin-bottom: 6px; 
+            line-height: 1.4;
+        }
+        
+        /* Classe utilitaire pour les boutons modernes */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem; /* 8px */
+            font-weight: 700;
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: translateY(0);
+        }
+        .btn:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transform: translateY(-2px);
+        }
+        .btn-blue {
+            background-image: linear-gradient(to right, #3b82f6, #2563eb);
+        }
+        .btn-blue:hover {
+            background-image: linear-gradient(to right, #2563eb, #3b82f6);
+        }
+        .btn-indigo {
+            background-image: linear-gradient(to right, #6366f1, #4f46e5);
+        }
+        .btn-indigo:hover {
+            background-image: linear-gradient(to right, #4f46e5, #6366f1);
+        }
+        .btn-red {
+            background-image: linear-gradient(to right, #ef4444, #dc2626);
+        }
+        .btn-red:hover {
+            background-image: linear-gradient(to right, #dc2626, #ef4444);
+        }
+        .btn-gray {
+            background-color: #6b7280;
+            color: white;
+        }
+        .btn-gray:hover {
+            background-color: #4b5563;
+        }
+        
+        /* Style des inputs */
+        .input-modern {
+            padding: 0.75rem;
+            border: 1px solid #4b5563; /* border-gray-600 */
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            width: 100%;
+            background-color: #374151; /* bg-gray-700 */
+            color: #f3f4f6; /* text-gray-100 */
+        }
+        .input-modern:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-8">
+    
+    <!-- Conteneur principal -->
+    <div class="max-w-7xl mx-auto">
+
+        <header class="mb-8 pb-4 border-b border-gray-700 flex justify-between items-center">
+            <div class="text-left">
+                <h1 class="text-4xl md:text-5xl font-bold text-white">Boursiers Scouts 📈</h1>
+                <p class="text-xl text-gray-400 mt-2">Panneau de Contrôle (Mode Local)</p>
+            </div>
+            <button id="resetGameBtn" class="btn btn-gray">
+                Réinitialiser le Jeu
+            </button>
+        </header>
+
+        <!-- Affichage du minuteur -->
+        <div id="timerDisplay" class="text-center text-6xl font-bold text-blue-500 mb-8 p-6 bg-gray-800 rounded-xl shadow-lg border border-gray-700">
+            --:--:--
+        </div>
+
+        <!-- Section de Démarrage (visible seulement si le jeu n'est pas lancé) -->
+        <div id="startGameSection" class="bg-gray-800 p-8 rounded-xl shadow-lg mb-8 border border-gray-700">
+            <h2 class="text-3xl font-bold mb-6 text-white">Démarrer une nouvelle partie</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <input type="text" id="team1NameInput" value="Sanglier" class="input-modern" placeholder="Nom Patrouille 1">
+                <input type="text" id="team2NameInput" value="Panthère" class="input-modern" placeholder="Nom Patrouille 2">
+                <input type="text" id="team3NameInput" value="Crocodile" class="input-modern" placeholder="Nom Patrouille 3">
+            </div>
+
+            <div class="mb-6">
+                <label for="validCodesInput" class="block text-lg font-medium text-gray-300 mb-2">Codes Valides (30 max, un par ligne)</label>
+                <textarea id="validCodesInput" rows="10" class="input-modern font-mono" placeholder="CODE01&#10;SCOUTFOREVER&#10;EXPLORATEUR..."></textarea>
+                <p class="text-sm text-gray-500 mt-2">Ces codes augmenteront le score. Tout autre code le diminuera.</p>
+            </div>
+
+            <button id="startGameBtn" class="w-full btn btn-blue text-xl">
+                🚀 Démarrer la Partie (2h30)
+            </button>
+        </div>
+
+        <!-- Tableau de bord principal (visible après le démarrage) -->
+        <div id="dashboard" class="hidden">
+
+            <!-- Graphique (Reste en haut) -->
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8 border border-gray-700">
+                <h2 class="text-2xl font-bold mb-4 text-white">Évolution des Bourses</h2>
+                <div class="chart-container">
+                    <canvas id="moneyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Cartes des Patrouilles avec Contrôles Intégrés -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                
+                <!-- Patrouille 1 -->
+                <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 border-t-4 border-t-blue-500 space-y-6">
+                    <!-- Infos Equipe -->
+                    <div>
+                        <h2 id="team1Name" class="text-3xl font-bold text-white">Patrouille 1</h2>
+                        <p id="team1Money" class="text-5xl font-extrabold text-blue-500 mt-2">1 000 000 €</p>
+                    </div>
+                    
+                    <hr class="border-gray-700">
+                    
+                    <!-- Contrôle Code -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold text-white">🔑 Entrer un Code</h3>
+                        <input type="text" id="codeInput1" class="input-modern" placeholder="Entrer le code ici...">
+                        <button id="submitCodeBtn1" class="w-full btn btn-indigo">
+                            Valider pour Sanglier
+                        </button>
+                    </div>
+                    
+                    <hr class="border-gray-700">
+
+                    <!-- Contrôle Défi -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold text-white">⚔️ Lancer un Défi</h3>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Adversaire</label>
+                            <select id="defenderSelect1" class="input-modern mt-1">
+                                <!-- Options générées par JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Pari</label>
+                            <select id="betSelect1" class="input-modern mt-1">
+                                <option value="5">Pari: 5%</option>
+                                <option value="10">Pari: 10%</option>
+                                <option value="15">Pari: 15%</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Gagnant du Défi</label>
+                            <select id="winnerSelect1" class="input-modern mt-1">
+                                <!-- Options générées par JS -->
+                            </select>
+                        </div>
+                        <button id="resolveChallengeBtn1" class="w-full btn btn-red">
+                            Résoudre le Défi
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Patrouille 2 -->
+                <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 border-t-4 border-t-green-500 space-y-6">
+                    <!-- Infos Equipe -->
+                    <div>
+                        <h2 id="team2Name" class="text-3xl font-bold text-white">Patrouille 2</h2>
+                        <p id="team2Money" class="text-5xl font-extrabold text-green-500 mt-2">1 000 000 €</p>
+                    </div>
+                    
+                    <hr class="border-gray-700">
+                    
+                    <!-- Contrôle Code -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold text-white">🔑 Entrer un Code</h3>
+                        <input type="text" id="codeInput2" class="input-modern" placeholder="Entrer le code ici...">
+                        <button id="submitCodeBtn2" class="w-full btn btn-indigo">
+                            Valider pour Panthère
+                        </button>
+                    </div>
+                    
+                    <hr class="border-gray-700">
+
+                    <!-- Contrôle Défi -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold text-white">⚔️ Lancer un Défi</h3>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Adversaire</label>
+                            <select id="defenderSelect2" class="input-modern mt-1">
+                                <!-- Options générées par JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Pari</label>
+                            <select id="betSelect2" class="input-modern mt-1">
+                                <option value="5">Pari: 5%</option>
+                                <option value="10">Pari: 10%</option>
+                                <option value="15">Pari: 15%</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Gagnant du Défi</label>
+                            <select id="winnerSelect2" class="input-modern mt-1">
+                                <!-- Options générées par JS -->
+                            </select>
+                        </div>
+                        <button id="resolveChallengeBtn2" class="w-full btn btn-red">
+                            Résoudre le Défi
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Patrouille 3 -->
+                <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 border-t-4 border-t-yellow-500 space-y-6">
+                    <!-- Infos Equipe -->
+                    <div>
+                        <h2 id="team3Name" class="text-3xl font-bold text-white">Patrouille 3</h2>
+                        <p id="team3Money" class="text-5xl font-extrabold text-yellow-500 mt-2">1 000 000 €</p>
+                    </div>
+                    
+                    <hr class="border-gray-700">
+                    
+                    <!-- Contrôle Code -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold text-white">🔑 Entrer un Code</h3>
+                        <input type="text" id="codeInput3" class="input-modern" placeholder="Entrer le code ici...">
+                        <button id="submitCodeBtn3" class="w-full btn btn-indigo">
+                            Valider pour Crocodile
+                        </button>
+                    </div>
+                    
+                    <hr class="border-gray-700">
+
+                    <!-- Contrôle Défi -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold text-white">⚔️ Lancer un Défi</h3>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Adversaire</label>
+                            <select id="defenderSelect3" class="input-modern mt-1">
+                                <!-- Options générées par JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Pari</label>
+                            <select id="betSelect3" class="input-modern mt-1">
+                                <option value="5">Pari: 5%</option>
+                                <option value="10">Pari: 10%</option>
+                                <option value="15">Pari: 15%</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Gagnant du Défi</label>
+                            <select id="winnerSelect3" class="input-modern mt-1">
+                                <!-- Options générées par JS -->
+                            </select>
+                        </div>
+                        <button id="resolveChallengeBtn3" class="w-full btn btn-red">
+                            Résoudre le Défi
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Journal des événements (Reste en bas) -->
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+                <h2 class="text-2xl font-bold mb-4 text-white">Historique des Événements</h2>
+                <div id="gameLog">
+                    <p>En attente d'événements...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logique JavaScript -->
+    <script type="module">
+        // --- Clé de Stockage ---
+        const STORAGE_KEY = 'bourseScouteGame';
+
+        // --- Variables Globales ---
+        let gameState = null;
+        let chartInstance = null;
+        let timerInterval = null;
+
+        // --- Éléments DOM ---
+        const startGameSection = document.getElementById('startGameSection');
+        const dashboard = document.getElementById('dashboard');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const resetGameBtn = document.getElementById('resetGameBtn');
+        
+        const team1Name = document.getElementById('team1Name');
+        const team1Money = document.getElementById('team1Money');
+        const team2Name = document.getElementById('team2Name');
+        const team2Money = document.getElementById('team2Money');
+        const team3Name = document.getElementById('team3Name');
+        const team3Money = document.getElementById('team3Money');
+        
+        const teamNameInputs = {
+            team1: document.getElementById('team1NameInput'),
+            team2: document.getElementById('team2NameInput'),
+            team3: document.getElementById('team3NameInput')
+        };
+        const validCodesInput = document.getElementById('validCodesInput');
+
+        const gameLog = document.getElementById('gameLog');
+
+        const startGameBtn = document.getElementById('startGameBtn');
+        
+        // Nouveaux éléments DOM pour les 3 panneaux
+        const codeInput1 = document.getElementById('codeInput1');
+        const submitCodeBtn1 = document.getElementById('submitCodeBtn1');
+        const defenderSelect1 = document.getElementById('defenderSelect1');
+        const betSelect1 = document.getElementById('betSelect1');
+        const winnerSelect1 = document.getElementById('winnerSelect1');
+        const resolveChallengeBtn1 = document.getElementById('resolveChallengeBtn1');
+
+        const codeInput2 = document.getElementById('codeInput2');
+        const submitCodeBtn2 = document.getElementById('submitCodeBtn2');
+        const defenderSelect2 = document.getElementById('defenderSelect2');
+        const betSelect2 = document.getElementById('betSelect2');
+        const winnerSelect2 = document.getElementById('winnerSelect2');
+        const resolveChallengeBtn2 = document.getElementById('resolveChallengeBtn2');
+        
+        const codeInput3 = document.getElementById('codeInput3');
+        const submitCodeBtn3 = document.getElementById('submitCodeBtn3');
+        const defenderSelect3 = document.getElementById('defenderSelect3');
+        const betSelect3 = document.getElementById('betSelect3');
+        const winnerSelect3 = document.getElementById('winnerSelect3');
+        const resolveChallengeBtn3 = document.getElementById('resolveChallengeBtn3');
+
+        // Sélecteurs pour les contrôles (supprimés)
+        /*
+        const codeTeamSelect = document.getElementById('codeTeamSelect');
+        const codeInput = document.getElementById('codeInput');
+        const submitCodeBtn = document.getElementById('submitCodeBtn');
+        const attackerTeamSelect = document.getElementById('attackerTeamSelect');
+        const defenderTeamSelect = document.getElementById('defenderTeamSelect');
+        const betAmountSelect = document.getElementById('betAmountSelect');
+        const challengeWinnerSelect = document.getElementById('challengeWinnerSelect');
+        const resolveChallengeBtn = document.getElementById('resolveChallengeBtn');
+        */
+
+        // --- Fonctions de Gestion de l'État ---
+
+        /**
+         * Charge l'état du jeu depuis localStorage
+         */
+        function loadGameState() {
+            const savedState = localStorage.getItem(STORAGE_KEY);
+            if (savedState) {
+                gameState = JSON.parse(savedState);
+            } else {
+                gameState = null;
+            }
+        }
+
+        /**
+         * Sauvegarde l'état du jeu actuel dans localStorage
+         */
+        function saveGameState() {
+            if (gameState) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+            } else {
+                localStorage.removeItem(STORAGE_KEY);
+            }
+        }
+        
+        /**
+         * Affiche le bon écran (Démarrage ou Dashboard)
+         */
+        function renderUI() {
+            if (gameState) {
+                // Le jeu existe, afficher le tableau de bord
+                renderGameState(gameState);
+                startGameSection.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+            } else {
+                // Pas de jeu, afficher l'écran de démarrage
+                startGameSection.classList.remove('hidden');
+                dashboard.classList.add('hidden');
+                if (timerInterval) clearInterval(timerInterval);
+                timerDisplay.textContent = "--:--:--";
+            }
+        }
+
+        /**
+         * Met à jour l'interface avec les données du jeu
+         */
+        function renderGameState(state) {
+            if (!state || !state.teams) return;
+
+            // Mettre à jour les cartes des équipes
+            const [team1, team2, team3] = state.teams;
+            
+            team1Name.textContent = team1.name;
+            team1Money.textContent = formatCurrency(team1.money);
+            
+            team2Name.textContent = team2.name;
+            team2Money.textContent = formatCurrency(team2.money);
+            
+            team3Name.textContent = team3.name;
+            team3Money.textContent = formatCurrency(team3.money);
+
+            // Mettre à jour les options des sélecteurs (pour les défis)
+            updateDefenderSelects(state.teams);
+            updateWinnerSelects(state.teams);
+
+            // Mettre à jour le journal
+            if (state.log && state.log.length > 0) {
+                gameLog.innerHTML = state.log.slice().reverse().map(entry => `<p>${entry}</p>`).join('');
+            } else {
+                gameLog.innerHTML = "<p>Aucun événement pour le moment.</p>";
+            }
+
+            // Mettre à jour le graphique
+            updateChart(state);
+
+            // Gérer le minuteur
+            updateTimerDisplay(state.gameEndTime);
+        }
+        
+        /**
+         * Met à jour les menus déroulants des ADVERSAIRES
+         */
+        function updateDefenderSelects(teams) {
+            const selects = [defenderSelect1, defenderSelect2, defenderSelect3];
+            
+            selects.forEach((select, attackerIndex) => {
+                const currentValue = select.value;
+                select.innerHTML = '';
+                teams.forEach((team, index) => {
+                    // Une équipe ne peut pas s'attaquer elle-même
+                    if (index !== attackerIndex) {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = team.name;
+                        select.appendChild(option);
+                    }
+                });
+                select.value = currentValue;
+            });
+        }
+
+        /**
+         * Met à jour les menus déroulants des GAGNANTS
+         */
+        function updateWinnerSelects(teams) {
+            const winnerSelects = [winnerSelect1, winnerSelect2, winnerSelect3];
+            const defenderSelects = [defenderSelect1, defenderSelect2, defenderSelect3];
+
+            winnerSelects.forEach((select, attackerIndex) => {
+                const defenderIndex = parseInt(defenderSelects[attackerIndex].value);
+                if (isNaN(defenderIndex)) return; // Au cas où
+
+                const attackerName = teams[attackerIndex].name;
+                const defenderName = teams[defenderIndex].name;
+
+                const currentValue = select.value;
+                select.innerHTML = ''; // Vider
+
+                const optAttacker = document.createElement('option');
+                optAttacker.value = attackerIndex;
+                optAttacker.textContent = `Gagnant: ${attackerName} (Attaquant)`;
+                select.appendChild(optAttacker);
+
+                const optDefender = document.createElement('option');
+                optDefender.value = defenderIndex;
+                optDefender.textContent = `Gagnant: ${defenderName} (Défenseur)`;
+                select.appendChild(optDefender);
+
+                select.value = currentValue;
+            });
+        }
+
+        /**
+         * Gère le minuteur du jeu
+         */
+        function updateTimerDisplay(gameEndTime) {
+            if (timerInterval) clearInterval(timerInterval);
+
+            if (!gameEndTime) {
+                timerDisplay.textContent = "Terminé";
+                return;
+            }
+
+            const endTimeMs = gameEndTime; // C'est déjà un nombre (timestamp)
+
+            timerInterval = setInterval(() => {
+                const now = Date.now();
+                const remaining = endTimeMs - now;
+
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    timerDisplay.textContent = "🎉 Terminé ! 🎉";
+                    timerDisplay.classList.remove("text-blue-600");
+                    timerDisplay.classList.add("text-red-600");
+                    return;
+                }
+
+                const seconds = Math.floor((remaining / 1000) % 60);
+                const minutes = Math.floor((remaining / (1000 * 60)) % 60);
+                const hours = Math.floor((remaining / (1000 * 60 * 60)) % 24);
+
+                timerDisplay.textContent = 
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        /**
+         * Initialise ou met à jour le graphique Chart.js
+         */
+        function updateChart(state) {
+            const ctx = document.getElementById('moneyChart');
+            if (!ctx) return;
+
+            const labels = state.teams[0].history.map((_, i) => i); // Crée des étiquettes (0, 1, 2, ...)
+
+            const datasets = state.teams.map((team, index) => {
+                const colors = [
+                    { border: 'rgb(59, 130, 246)', bg: 'rgba(59, 130, 246, 0.1)' }, // Blue
+                    { border: 'rgb(34, 197, 94)', bg: 'rgba(34, 197, 94, 0.1)' },  // Green
+                    { border: 'rgb(234, 179, 8)', bg: 'rgba(234, 179, 8, 0.1)' }   // Yellow
+                ];
+                return {
+                    label: team.name,
+                    data: team.history,
+                    borderColor: colors[index].border,
+                    backgroundColor: colors[index].bg,
+                    fill: true,
+                    tension: 0.2, // Un peu plus doux
+                    borderWidth: 2
+                };
+            });
+
+            if (!chartInstance) {
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    // Formatter l'axe Y en monnaie
+                                    callback: function(value) {
+                                        return formatCurrency(value, 0);
+                                    },
+                                    color: 'rgba(230, 230, 230, 0.8)' // Couleur du texte de l'axe Y
+                                },
+                                grid: {
+                                    color: 'rgba(230, 230, 230, 0.1)' // Couleur des lignes de la grille Y
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: 'rgba(230, 230, 230, 0.8)' // Couleur du texte de l'axe X
+                                },
+                                grid: {
+                                    color: 'rgba(230, 230, 230, 0.1)' // Couleur des lignes de la grille X
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: 'rgba(230, 230, 230, 0.8)' // Couleur du texte de la légende
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += formatCurrency(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets = datasets;
+                chartInstance.update('none'); // Mise à jour sans animation pour la fluidité
+            }
+        }
+
+        /**
+        * Formatte un nombre en devise (Euro)
+        */
+        function formatCurrency(amount, decimals = 0) {
+            return new Intl.NumberFormat('fr-FR', { 
+                style: 'currency', 
+                currency: 'EUR',
+                maximumFractionDigits: decimals,
+                minimumFractionDigits: decimals
+            }).format(amount);
+        }
+
+        // --- Fonctions de Logique de Jeu ---
+
+        /**
+         * Crée un nouvel état de jeu
+         */
+        function handleStartGame() {
+            // Désactiver le bouton pour éviter les doubles clics
+            startGameBtn.disabled = true;
+            startGameBtn.textContent = "Démarrage...";
+
+            const startTime = Date.now();
+            // 2h30 = 150 minutes
+            const endTime = startTime + 150 * 60 * 1000; 
+
+            const initialMoney = 1000000; // 1 Million pour commencer
+            const names = [
+                teamNameInputs.team1.value,
+                teamNameInputs.team2.value,
+                teamNameInputs.team3.value
+            ];
+
+            // Nettoyer et filtrer les codes valides
+            const validCodes = validCodesInput.value
+                .split('\n')
+                .map(code => code.trim().toUpperCase())
+                .filter(code => code.length > 0)
+                .slice(0, 30); // Limite à 30 codes
+
+            if (validCodes.length === 0) {
+                // Utilisation d'une modale simple au lieu d'alert()
+                showModal("Veuillez entrer au moins un code valide.");
+                startGameBtn.disabled = false;
+                startGameBtn.textContent = "🚀 Démarrer la Partie (2h30)";
+                return;
+            }
+
+            const initialState = {
+                gameStartTime: startTime,
+                gameEndTime: endTime,
+                teams: names.map(name => ({
+                    name: name,
+                    money: initialMoney,
+                    history: [initialMoney] // L'historique commence avec le montant initial
+                })),
+                validCodes: validCodes,
+                usedCodes: [], // Codes déjà utilisés
+                log: [`🎉 La partie commence ! Fin prévue à ${new Date(endTime).toLocaleTimeString('fr-FR')}`]
+            };
+            
+            gameState = initialState;
+            saveGameState();
+            renderUI(); // Afficher le tableau de bord
+        }
+
+        /**
+         * Gère la soumission d'un code
+         */
+        function handleSubmitCode(teamIndex) {
+            const codeInput = document.getElementById(`codeInput${teamIndex + 1}`);
+            const submitCodeBtn = document.getElementById(`submitCodeBtn${teamIndex + 1}`);
+            const code = codeInput.value.trim().toUpperCase();
+
+            if (!code) {
+                showModal("Veuillez entrer un code.");
+                return;
+            }
+
+            submitCodeBtn.disabled = true;
+
+            const teamName = gameState.teams[teamIndex].name;
+            let moneyChange = 0;
+            let logMessage = "";
+            
+            // 1. Code déjà utilisé ?
+            if (gameState.usedCodes.includes(code)) {
+                moneyChange = -Math.floor(Math.random() * 100000 + 50000); // Pénalité pour code déjà utilisé (échelle x100)
+                logMessage = `🚫 [${teamName}] a réutilisé le code "${code}". Pénalité de ${formatCurrency(moneyChange)} !`;
+            
+            // 2. Code valide ?
+            } else if (gameState.validCodes.includes(code)) {
+                moneyChange = Math.floor(Math.random() * 200000 + 100000); // Gain (échelle x100)
+                gameState.usedCodes.push(code); // Ajouter aux codes utilisés
+                logMessage = `✅ [${teamName}] a trouvé le bon code "${code}". Gain de ${formatCurrency(moneyChange)} !`;
+            
+            // 3. Code incorrect
+            } else {
+                moneyChange = -Math.floor(Math.random() * 100000 + 50000); // Pénalité (échelle x100)
+                logMessage = `❌ [${teamName}] a entré un code incorrect "${code}". Perte de ${formatCurrency(moneyChange)} !`;
+            }
+
+            // Préparer la mise à jour
+            let teamToUpdate = gameState.teams[teamIndex];
+
+            teamToUpdate.money += moneyChange;
+            if (teamToUpdate.money < 0) teamToUpdate.money = 0; // Pas d'argent négatif
+            
+            // Mettre à jour l'historique de toutes les équipes
+            gameState.teams.forEach((team, index) => {
+                if(index === teamIndex) {
+                    team.history.push(team.money);
+                } else {
+                    team.history.push(team.money); // Répéter la dernière valeur
+                }
+            });
+
+            // Mettre à jour le log
+            gameState.log.unshift(logMessage); // Ajouter au début
+            if(gameState.log.length > 100) gameState.log.pop(); // Limiter à 100
+
+            // Sauvegarder et rafraîchir
+            saveGameState();
+            renderGameState(gameState);
+
+            codeInput.value = ""; // Vider l'input
+            submitCodeBtn.disabled = false;
+        }
+
+        /**
+         * Gère la résolution d'un défi
+         */
+        function handleResolveChallenge(attackerIndex) {
+            const defenderSelect = document.getElementById(`defenderSelect${attackerIndex + 1}`);
+            const betSelect = document.getElementById(`betSelect${attackerIndex + 1}`);
+            const winnerSelect = document.getElementById(`winnerSelect${attackerIndex + 1}`);
+            const resolveChallengeBtn = document.getElementById(`resolveChallengeBtn${attackerIndex + 1}`);
+
+            const defenderIndex = parseInt(defenderSelect.value);
+            const betPercent = parseInt(betSelect.value);
+            const winnerIndex = parseInt(winnerSelect.value);
+
+            // La vérification d'auto-attaque est gérée par le remplissage du select, mais double sécurité
+            if (attackerIndex === defenderIndex) {
+                showModal("Une équipe ne peut pas se défier elle-même !");
+                return;
+            }
+
+            resolveChallengeBtn.disabled = true;
+            
+            const loserIndex = (winnerIndex === attackerIndex) ? defenderIndex : attackerIndex;
+
+            let winnerTeam = gameState.teams[winnerIndex];
+            let loserTeam = gameState.teams[loserIndex];
+            
+            const attackerName = gameState.teams[attackerIndex].name;
+            const defenderName = gameState.teams[defenderIndex].name;
+
+            // Calculer le montant volé
+            const amountStolen = Math.floor(loserTeam.money * (betPercent / 100));
+
+            if (loserTeam.money < amountStolen) {
+                showModal(`${loserTeam.name} n'a pas assez d'argent pour ce pari !`);
+                resolveChallengeBtn.disabled = false;
+                return;
+            }
+
+            // Appliquer les changements
+            winnerTeam.money += amountStolen;
+            loserTeam.money -= amountStolen;
+
+            // Mettre à jour l'historique de tous
+            gameState.teams.forEach((team, index) => {
+                if (index === winnerIndex || index === loserIndex) {
+                    team.history.push(team.money);
+                } else {
+                    team.history.push(team.money); // Répéter la dernière valeur
+                }
+            });
+            
+            const logMessage = `⚔️ Défi ! [${attackerName}] vs [${defenderName}]. [${winnerTeam.name}] gagne ${formatCurrency(amountStolen)} (${betPercent}%) !`;
+
+            // Mettre à jour le log
+            gameState.log.unshift(logMessage);
+            if(gameState.log.length > 100) gameState.log.pop();
+
+            // Sauvegarder et rafraîchir
+            saveGameState();
+            renderGameState(gameState);
+            
+            resolveChallengeBtn.disabled = false;
+        }
+        
+        /**
+         * Réinitialise le jeu
+         */
+         function handleResetGame() {
+            // On utilise une modale simple au lieu de confirm()
+            showModal("Es-tu sûr de vouloir réinitialiser le jeu ? Toute la progression sera perdue.", true, () => {
+                gameState = null;
+                saveGameState();
+                location.reload(); // Recharger la page pour tout réinitialiser
+            });
+        }
+
+        /**
+         * Affiche une modale simple au lieu d'alert() ou confirm()
+         * C'est une meilleure pratique de design moderne.
+         */
+        function showModal(message, showConfirm = false, onConfirm = null) {
+            // Supprimer une modale existante
+            const existingModal = document.getElementById('customModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Créer la modale
+            const modalBackdrop = document.createElement('div');
+            modalBackdrop.id = 'customModal';
+            modalBackdrop.className = 'fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50';
+            
+            const modalContent = document.createElement('div');
+            modalContent.className = 'bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full border border-gray-700';
+            
+            const messageEl = document.createElement('p');
+            messageEl.textContent = message;
+            messageEl.className = 'text-lg text-gray-100 mb-6';
+            
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'flex justify-end space-x-4';
+
+            // Bouton 'Fermer' ou 'Annuler'
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = showConfirm ? 'Annuler' : 'Fermer';
+            closeBtn.className = 'btn btn-gray';
+            closeBtn.onclick = () => modalBackdrop.remove();
+            
+            buttonContainer.appendChild(closeBtn);
+
+            // Bouton 'Confirmer' (si nécessaire)
+            if (showConfirm && onConfirm) {
+                const confirmBtn = document.createElement('button');
+                confirmBtn.textContent = 'Confirmer';
+                confirmBtn.className = 'btn btn-red';
+                confirmBtn.onclick = () => {
+                    onConfirm();
+                    modalBackdrop.remove();
+                };
+                buttonContainer.appendChild(confirmBtn);
+            }
+
+            modalContent.appendChild(messageEl);
+            modalContent.appendChild(buttonContainer);
+            modalBackdrop.appendChild(modalContent);
+            document.body.appendChild(modalBackdrop);
+        }
+
+
+        // --- Initialisation ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadGameState();
+            renderUI();
+            
+            // Attacher les écouteeurs d'événements
+            startGameBtn.addEventListener('click', handleStartGame);
+            resetGameBtn.addEventListener('click', handleResetGame);
+            
+            // Nouveaux écouteurs pour les panneaux
+            submitCodeBtn1.addEventListener('click', () => handleSubmitCode(0));
+            resolveChallengeBtn1.addEventListener('click', () => handleResolveChallenge(0));
+            // Mettre à jour les gagnants si l'adversaire change
+            defenderSelect1.addEventListener('change', () => updateWinnerSelects(gameState.teams));
+
+            submitCodeBtn2.addEventListener('click', () => handleSubmitCode(1));
+            resolveChallengeBtn2.addEventListener('click', () => handleResolveChallenge(1));
+            defenderSelect2.addEventListener('change', () => updateWinnerSelects(gameState.teams));
+
+            submitCodeBtn3.addEventListener('click', () => handleSubmitCode(2));
+            resolveChallengeBtn3.addEventListener('click', () => handleResolveChallenge(2));
+            defenderSelect3.addEventListener('change', () => updateWinnerSelects(gameState.teams));
+        });
+
+    </script>
+</body>
+</html>
